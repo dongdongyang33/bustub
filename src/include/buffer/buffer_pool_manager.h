@@ -152,6 +152,16 @@ class BufferPoolManager {
    */
   void FlushAllPagesImpl();
 
+  /**
+   * Flushes single pages in the buffer pool to disk.
+   */
+  bool FlushSinglePage(page_id_t page_id);
+
+  /**
+   * Get new page from buffer pool manager
+   */  
+  Page* GetNewPageFromBPM(bool newpage, page_id_t page_id);
+
   /** Number of pages in the buffer pool. */
   size_t pool_size_;
   /** Array of buffer pool pages. */

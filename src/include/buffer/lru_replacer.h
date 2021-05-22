@@ -13,6 +13,7 @@
 #pragma once
 
 #include <list>
+#include <unordered_map>
 #include <mutex>  // NOLINT
 #include <vector>
 
@@ -47,6 +48,11 @@ class LRUReplacer : public Replacer {
 
  private:
   // TODO(student): implement me!
+  size_t maxsize;
+  using listIt = typename std::list<frame_id_t>::iterator;
+  std::unordered_map<frame_id_t, listIt> mapping;
+  std::list<frame_id_t> lru;
+  std::mutex mtx;
 };
 
 }  // namespace bustub
