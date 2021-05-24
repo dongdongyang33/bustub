@@ -61,6 +61,7 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   void CopyNFrom(MappingType *items, int size, BufferPoolManager *buffer_pool_manager);
   void CopyLastFrom(const MappingType &pair, BufferPoolManager *buffer_pool_manager);
   void CopyFirstFrom(const MappingType &pair, BufferPoolManager *buffer_pool_manager);
+  void ResetParentIdForMovePage(page_id_t pid, page_id_t parentid, BufferPoolManager *buffer_pool_manager);
   MappingType array[0];
 };
 }  // namespace bustub
