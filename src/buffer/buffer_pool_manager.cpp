@@ -84,7 +84,7 @@ Page *BufferPoolManager::NewPageImpl(page_id_t *page_id) {
   // 4.   Set the page ID output parameter. Return a pointer to P.
     std::lock_guard<std::mutex> lock(latch_);
     Page* ret = GetNewPageFromBPM(true, INVALID_PAGE_ID);
-    *page_id = ret->page_id_;
+    if(ret != nullptr) *page_id = ret->page_id_;
     return ret;
 }
 
