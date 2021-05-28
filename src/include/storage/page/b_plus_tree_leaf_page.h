@@ -67,6 +67,7 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   void CopyNFrom(MappingType *items, int size);
   void CopyLastFrom(const MappingType &item);
   void CopyFirstFrom(const MappingType &item);
+  int LookUpTheKey(const KeyType &key, const KeyComparator &comparator) const;
   page_id_t next_page_id_;
   MappingType array[0];
 };

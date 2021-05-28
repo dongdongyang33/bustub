@@ -85,19 +85,16 @@ ValueType B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const {
 INDEX_TEMPLATE_ARGUMENTS
 ValueType B_PLUS_TREE_INTERNAL_PAGE_TYPE::Lookup(const KeyType &key, const KeyComparator &comparator) const {
     ValueType ret = array[0].second;
-    int l = 1, r = GetSize();
+    int l = 1, r = GetSize() - 1;
     while (l <= r) {
         int mid = l + (r - l) / 2;
         int cmp = comparator(array[mid].first, key);
-        if ( cmp == 0 ) {
+        if (cmp <= 0) {
             ret = array[mid].second;
-            break;
+            if (cmp == 0) break;
+            else l = mid + 1;
         } else {
-            if (cmp > 0) r = mid - 1;
-            else {
-                ret = array[mid].second;
-                l = mid + 1;
-            }
+            r = mid - 1;
         }
     }
     return ret;
@@ -169,8 +166,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyNFrom(MappingType *items, int size, Buf
 
     page_id_t current_id = GetPageId();
     for(int i = 0; i < size; i++) {
-        array[i+current_size].first = items[i].first;
-        array[i+current_size].second = items[i].second;
+        array[i+current_size] = items[i];
 
         page_id_t pid =  static_cast<page_id_t>(array[i].second);
         ResetParentIdForMovePage(pid, current_id, buffer_pool_manager);
