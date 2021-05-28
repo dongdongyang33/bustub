@@ -254,20 +254,18 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyFirstFrom(const MappingType &item) {
 
 INDEX_TEMPLATE_ARGUMENTS
 int B_PLUS_TREE_LEAF_PAGE_TYPE::LookUpTheKey(const KeyType &key, const KeyComparator &comparator) const {
-    int ret = -1;
     int l = 0, r = GetSize() - 1;
     while (l <= r) {
         int m = l + ( r - l ) / 2;
         int cmp = comparator(array[m].first, key);
         if (cmp == 0) {
-            ret = m;
-            break;
+            return m;
         } else {
             if (cmp > 0) r = m - 1;
             else l = m + 1;
         }
     }
-    return ret;
+    return -1;
 }
 
 
