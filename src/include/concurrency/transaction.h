@@ -149,7 +149,8 @@ class TransactionAbortException : public std::exception {
 class Transaction {
  public:
   explicit Transaction(txn_id_t txn_id, IsolationLevel isolation_level = IsolationLevel::REPEATABLE_READ)
-      : state_(TransactionState::GROWING),
+      : tree_latch(false),
+        state_(TransactionState::GROWING),
         isolation_level_(isolation_level),
         thread_id_(std::this_thread::get_id()),
         txn_id_(txn_id),
@@ -246,6 +247,8 @@ class Transaction {
    */
   inline void SetPrevLSN(lsn_t prev_lsn) { prev_lsn_ = prev_lsn; }
 
+  inline bool GetTreeLatch() { return tree_latch; }
+  inline void SetTreeLatch(bool tl) { tree_latch = tl; }
  private:
   /** The current transaction state. */
   TransactionState state_;
@@ -267,6 +270,8 @@ class Transaction {
   std::shared_ptr<std::deque<Page *>> page_set_;
   /** Concurrent index: the page IDs that were deleted during index operation.*/
   std::shared_ptr<std::unordered_set<page_id_t>> deleted_page_set_;
+  /** The tree have tree latch or not. */
+  bool tree_latch;
 
   /** LockManager: the set of shared-locked tuples held by this transaction. */
   std::shared_ptr<std::unordered_set<RID>> shared_lock_set_;

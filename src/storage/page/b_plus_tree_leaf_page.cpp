@@ -123,8 +123,8 @@ int B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &valu
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveHalfTo(BPlusTreeLeafPage *recipient) {
     int current_size = GetSize();
-    assert(current_size == GetMaxSize() - 1);
-    int left_half = (GetMaxSize() + 1) / 2;
+    assert(current_size >= GetMaxSize());
+    int left_half = (current_size + 1) / 2;
     recipient->CopyNFrom(array + left_half, current_size - left_half);
     next_page_id_ = recipient->GetPageId();
     SetSize(left_half);

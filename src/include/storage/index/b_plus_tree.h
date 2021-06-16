@@ -18,6 +18,7 @@
 #include "storage/index/index_iterator.h"
 #include "storage/page/b_plus_tree_internal_page.h"
 #include "storage/page/b_plus_tree_leaf_page.h"
+#include "common/rwlatch.h"
 
 namespace bustub {
 
@@ -104,6 +105,11 @@ class BPlusTree {
 
   void UpdateRootPageId(int insert_record = 0);
 
+  /* */
+  Page* GetLeafPageOptimistic(bool isRead, const KeyType &key);
+  Page* GetLeafPagePessimistic(bool isInsert, const KeyType &key, Transaction* txn);
+  Page* FetchNeedPageFromBPM(page_id_t pid);
+  void ReleaseSafeLatch(Transaction* txn, bool isDone);
   /* Debug Routines for FREE!! */
   void ToGraph(BPlusTreePage *page, BufferPoolManager *bpm, std::ofstream &out) const;
 
@@ -116,6 +122,7 @@ class BPlusTree {
   KeyComparator comparator_;
   int leaf_max_size_;
   int internal_max_size_;
+  mutable ReaderWriterLatch treelatch;
 };
 
 }  // namespace bustub

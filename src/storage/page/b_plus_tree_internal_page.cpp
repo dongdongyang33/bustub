@@ -148,8 +148,8 @@ INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveHalfTo(BPlusTreeInternalPage *recipient,
                                                 BufferPoolManager *buffer_pool_manager) {
     int current_size = GetSize();
-    int half = (current_size + 1) / 2;
     assert(current_size >= GetMaxSize());
+    int half = (current_size + 1) / 2;
     recipient->CopyNFrom(array + half, current_size - half, buffer_pool_manager);
     SetSize(half);
 }

@@ -31,7 +31,13 @@ BPLUSTREE_TYPE::BPlusTree(std::string name, BufferPoolManager *buffer_pool_manag
  * Helper function to decide whether current b+tree is empty
  */
 INDEX_TEMPLATE_ARGUMENTS
-bool BPLUSTREE_TYPE::IsEmpty() const { return true; }
+bool BPLUSTREE_TYPE::IsEmpty() const {
+    treelatch.RLock();
+    bool ret = true;
+    if(root_page_id_ != nullptr) ret = false;
+    treelatch.RUnlock();
+    return ret;
+}
 /*****************************************************************************
  * SEARCH
  *****************************************************************************/
@@ -42,8 +48,106 @@ bool BPLUSTREE_TYPE::IsEmpty() const { return true; }
  */
 INDEX_TEMPLATE_ARGUMENTS
 bool BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction) {
-  return false;
+    bool ret = false;
+    Page* page = GetLeafPageOptimistic(true, key);
+    if (page != nullptr) {
+        BPlusTreeLeafPage* opt_page = reinterpret_cast<BPlusTreeLeafPage*>(page->GetData());
+        ValueType value;
+        ret = opt_page->LookUp(key, value, comparator_);
+        if (ret) result->push_back(value);
+        page->RUnlatch();
+    }
+    buffer_pool_manager_->UnpinPage(page->GetPageId(), false);
+    return ret;
 }
+
+INDEX_TEMPLATE_ARGUMENTS
+Page* BPLUSTREE_TYPE::GetLeafPageOptimistic(bool isRead, const KeyType &key) {
+    treelatch.RLock();
+    page_id_t current_page_id = root_page_id_;
+    Page* ret = nullptr;
+    if (current_page_id == INVALID_PAGE_ID) {
+        treelatch.RUnlock();
+        return ret;
+    }
+    Page* preopt = nullptr;
+    while (current_page_id != INVALID_PAGE_ID){
+        Page* opt = FetchNeedPageFromBPM(current_page_id);
+        page_id_t saved_for_unpin = current_page_id;
+
+        BPlusTreePage* current_page = reinterpret_cast<BPlusTreePage*>(opt->GetData());
+        if ( !current_page->IsLeafPage() ) {
+            opt->RLatch();
+            BPlusTreeInternalPage* current_internal_page = reinterpret_cast<BPlusTreeInternalPage*>(current_page);
+            ValueType next_id = current_internal_page->LookUp(key, comparator_);
+            current_page_id = reinterpret_cast<page_id_t>(next_id); 
+        } else {
+            if (isRead) opt->RLatch();
+            else opt->WLatch();
+            ret = opt;
+            current_page_id = INVALID_PAGE_ID;
+        }
+        if(preopt == nullptr) {
+            treelatch.RUnlock();
+        } else {
+            preopt->RUnlatch();
+            buffer_pool_manager_->UnpinPage(preopt->GetPageId(), false);
+        }
+        preopt = opt;
+    }
+    return ret;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+Page* BPLUSTREE_TYPE::GetLeafPagePessimistic(bool isInsert, const KeyType &key, Transaction* txn) {
+    treelatch.WLock();
+    txn->SetTreeLatch(true);
+    page_id_t current_page_id = root_page_id_;
+    Page* ret = nullptr;
+    while (current_page_id != INVALID_PAGE_ID) {
+        Page* opt = FetchNeedPageFromBPM(current_page_id);
+        opt->WLatch();
+        BPlusTreePage* current_page = reinterpret_cast<BPlusTreePage*>(opt->GetData());
+        bool isSafe = false;
+        if (isInsert && current_page->IsSafeToInsert()) isSafe = true;
+        if (!isInsert && current_page->IsSafeToRemove()) isSafe = true;
+        if (isSafe) ReleaseSafeLatch(txn, false);
+        txn->AddIntoPageSet(opt);
+        if (!current_page->IsLeafPage()) {
+            BPlusTreeInternalPage* current_internal_page = reinterpret_cast<BPlusTreeInternalPage*>(current_page);
+            ValueType next_id = current_internal_page->LookUp(key, comparator_);
+            current_page_id = reinterpret_cast<page_id_t>(next_id); 
+        } else {
+            ret = opt;
+            current_page_id = INVALID_PAGE_ID;
+        }
+    }
+    return ret;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void BPLUSTREE_TYPE::ReleaseSafeLatch(Transaction* txn, bool isDone) {
+    std::shared_ptr<std::deque<Page *>> release_set = txn->GetPageSet();
+    if (txn->GetTreeLatch()) {
+        txn->SetTreeLatch(false);
+        treelatch.WUnlock();
+    }
+    while(!release_set->empty()) {
+        Page* opt = release_set->front();
+        release_set->pop_front();
+        buffer_pool_manager_->UnpinPage(opt->GetPageId, isDone);
+        opt->WUnlatch();
+    }
+}
+
+
+INDEX_TEMPLATE_ARGUMENTS
+Page* BPLUSTREE_TYPE::FetchNeedPageFromBPM(page_id_t pid) {
+    Page* ret = buffer_pool_manager_->FetchPage(pid);
+    if (ret == nullptr) std::runtime_error("[FetchPageError] No free frame in buffer pool manager!");
+    else return ret;
+}
+
 
 /*****************************************************************************
  * INSERTION
@@ -56,7 +160,18 @@ bool BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
  * keys return false, otherwise return true.
  */
 INDEX_TEMPLATE_ARGUMENTS
-bool BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *transaction) { return false; }
+bool BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *transaction) { 
+    bool ret = true;
+    Page* opt_page = GetLeafPageOptimistic(false, key);
+    if (opt_page == nullptr) opt_page = GetLeafPagePessimistic(true, key, transaction);
+    if(opt_page == nullptr) {
+        StartNewTree(key, value);
+        treelatch.WUnlock();
+    } else {
+        ret = InsertIntoLeaf(key, value, transaction);
+    }
+    return ret; 
+}
 /*
  * Insert constant key & value pair into an empty tree
  * User needs to first ask for new page from buffer pool manager(NOTICE: throw
@@ -64,7 +179,17 @@ bool BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
  * tree's root page id and insert entry directly into leaf page.
  */
 INDEX_TEMPLATE_ARGUMENTS
-void BPLUSTREE_TYPE::StartNewTree(const KeyType &key, const ValueType &value) {}
+void BPLUSTREE_TYPE::StartNewTree(const KeyType &key, const ValueType &value) {
+    assert(root_page_id_ == INVALID_PAGE_ID);
+    page_id_t root_page_id;
+    Page* page = buffer_pool_manager_->NewPage(root_page_id);
+    if(page == nullptr) std::runtime_error("[NewPageError] No free frame in buffer pool manager!");
+    BPlusTreeLeafPage* opt_page = reinterpret_cast<BPlusTreeLeafPage*>(page->GetData());
+    opt_page.Init(root_page_id, INVALID_PAGE_ID, leaf_max_size_);
+    opt_page.Insert(key, value, comparator_);
+    root_page_id_ = root_page_id;
+    buffer_pool_manager_->UnpinPage(root_page_id);
+}
 
 /*
  * Insert constant key & value pair into leaf page
@@ -76,7 +201,18 @@ void BPLUSTREE_TYPE::StartNewTree(const KeyType &key, const ValueType &value) {}
  */
 INDEX_TEMPLATE_ARGUMENTS
 bool BPLUSTREE_TYPE::InsertIntoLeaf(const KeyType &key, const ValueType &value, Transaction *transaction) {
-  return false;
+    std::shared_ptr<std::deque<Page *>> opt_page_set = txn->GetPageSet();
+    Page* opt = opt_page_set->back();
+    BPlusTreeLeafPage* leaf_page = reinterpret_cast<BPlusTreeLeafPage*>(opt->GetData());
+    bool ret = !(leaf_page->Lookup(key, value, comparator_));
+    opt_page_set->pop_back();
+    if (!ret) {
+        if (leaf_page->Insert(key, value, comparator_) >= leaf_page->GetMaxSize()) {
+            BPlusTreeLeafPage* new_page = Split(leaf_page);
+            InsertIntoParent(leaf_page, new_page->KeyAt(0), new_page, transaction);
+        }
+    }
+    return ret;
 }
 
 /*

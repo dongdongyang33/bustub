@@ -34,6 +34,13 @@ void BPlusTreePage::IncreaseSize(int amount) { size_ += amount; }
  */
 int BPlusTreePage::GetMaxSize() const { return max_size_; }
 void BPlusTreePage::SetMaxSize(int size) { max_size_ = size; }
+bool IsSafeToInsert() {
+
+}
+
+bool IsSafeToRemove() {
+    
+}
 
 /*
  * Helper method to get min page size
