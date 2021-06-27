@@ -106,10 +106,11 @@ class BPlusTree {
   void UpdateRootPageId(int insert_record = 0);
 
   /* */
-  Page* GetLeafPageOptimistic(bool isRead, const KeyType &key);
+  Page* GetLeafPageOptimistic(bool isRead, const KeyType &key,  Transaction* txn);
   Page* GetLeafPagePessimistic(bool isInsert, const KeyType &key, Transaction* txn);
+  Page* GetLeafPageOptimisticForIterator(const KeyType &key, int position);
   Page* FetchNeedPageFromBPM(page_id_t pid);
-  void ReleaseSafeLatch(Transaction* txn, bool isDone);
+  void ReleaseLatchAndDeletePage(Transaction* txn, bool isRead);
   /* Debug Routines for FREE!! */
   void ToGraph(BPlusTreePage *page, BufferPoolManager *bpm, std::ofstream &out) const;
 
