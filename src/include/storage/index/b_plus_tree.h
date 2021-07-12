@@ -81,6 +81,7 @@ class BPlusTree {
   Page *FindLeafPage(const KeyType &key, bool leftMost = false);
 
  private:
+
   void StartNewTree(const KeyType &key, const ValueType &value);
 
   bool InsertIntoLeaf(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr);
@@ -110,6 +111,9 @@ class BPlusTree {
   Page* GetLeafPagePessimistic(bool isInsert, const KeyType &key, Transaction* txn);
   Page* GetLeafPageOptimisticForIterator(const KeyType &key, int position);
   Page* FetchNeedPageFromBPM(page_id_t pid);
+  Page* NewPageFromBPM(page_id_t& pid);
+  template <typename N>
+  void NewRootPage(N *left_node, N *right_node, Transaction *txn); 
   void ReleaseLatchAndDeletePage(Transaction* txn, bool isRead);
   /* Debug Routines for FREE!! */
   void ToGraph(BPlusTreePage *page, BufferPoolManager *bpm, std::ofstream &out) const;

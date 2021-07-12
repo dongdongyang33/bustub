@@ -121,7 +121,8 @@ int B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &valu
  * Remove half of key & value pairs from this page to "recipient" page
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveHalfTo(BPlusTreeLeafPage *recipient) {
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveHalfTo(BPlusTreeLeafPage *recipient,
+                                            __attribute__((unused)) BufferPoolManager *buffer_pool_manager) {
     int current_size = GetSize();
     assert(current_size >= GetMaxSize());
     int left_half = (current_size + 1) / 2;
@@ -194,7 +195,9 @@ int B_PLUS_TREE_LEAF_PAGE_TYPE::RemoveAndDeleteRecord(const KeyType &key, const 
  * to update the next_page id in the sibling page
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveAllTo(BPlusTreeLeafPage *recipient) {
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveAllTo(BPlusTreeLeafPage *recipient, 
+                                            __attribute__((unused)) const KeyType &middle_key, 
+                                            __attribute__((unused)) BufferPoolManager *buffer_pool_manager) {
     recipient->CopyNFrom(array, GetSize());
     recipient->SetNextPageId(GetNextPageId());
     SetSize(0);
@@ -207,7 +210,9 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveAllTo(BPlusTreeLeafPage *recipient) {
  * Remove the first key & value pair from this page to "recipient" page.
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeLeafPage *recipient) {
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeLeafPage *recipient,
+                                            __attribute__((unused)) const KeyType &middle_key, 
+                                            __attribute__((unused)) BufferPoolManager *buffer_pool_manager) {
     int current_size = GetSize();
     assert(current_size > GetMinSize());
     recipient->CopyLastFrom(array[0]);
@@ -232,7 +237,9 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyLastFrom(const MappingType &item) {
  * Remove the last key & value pair from this page to "recipient" page.
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeLeafPage *recipient) {
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeLeafPage *recipient,
+                                            __attribute__((unused)) const KeyType &middle_key, 
+                                            __attribute__((unused)) BufferPoolManager *buffer_pool_manager) {
     assert(GetSize() > GetMinSize());
     recipient->CopyFirstFrom(array[GetSize() - 1]);
     IncreaseSize(-1);

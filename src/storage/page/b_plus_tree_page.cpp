@@ -34,12 +34,15 @@ void BPlusTreePage::IncreaseSize(int amount) { size_ += amount; }
  */
 int BPlusTreePage::GetMaxSize() const { return max_size_; }
 void BPlusTreePage::SetMaxSize(int size) { max_size_ = size; }
-bool IsSafeToInsert() {
 
+bool BPlusTreePage::IsSafeToInsert() {
+    if ((size_ + 1) >= max_size_) return false;
+    else return true;
 }
 
-bool IsSafeToRemove() {
-    
+bool BPlusTreePage::IsSafeToRemove() {
+    if ((size_ - 1) < GetMinSize()) return false;
+    else return true;
 }
 
 /*

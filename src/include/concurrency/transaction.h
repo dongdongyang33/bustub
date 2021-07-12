@@ -149,8 +149,7 @@ class TransactionAbortException : public std::exception {
 class Transaction {
  public:
   explicit Transaction(txn_id_t txn_id, IsolationLevel isolation_level = IsolationLevel::REPEATABLE_READ)
-      : tree_latch(false),
-        state_(TransactionState::GROWING),
+      : state_(TransactionState::GROWING),
         isolation_level_(isolation_level),
         thread_id_(std::this_thread::get_id()),
         txn_id_(txn_id),
@@ -162,6 +161,7 @@ class Transaction {
     index_write_set_ = std::make_shared<std::deque<IndexWriteRecord>>();
     page_set_ = std::make_shared<std::deque<bustub::Page *>>();
     deleted_page_set_ = std::make_shared<std::unordered_set<page_id_t>>();
+    tree_latch = false;
   }
 
   ~Transaction() = default;
