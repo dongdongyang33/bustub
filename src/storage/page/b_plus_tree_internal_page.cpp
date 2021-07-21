@@ -11,7 +11,7 @@
 
 #include <iostream>
 #include <sstream>
-
+#include "common/logger.h"
 #include "common/exception.h"
 #include "storage/page/b_plus_tree_internal_page.h"
 
@@ -38,7 +38,8 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Init(page_id_t page_id, page_id_t parent_id
 INDEX_TEMPLATE_ARGUMENTS
 KeyType B_PLUS_TREE_INTERNAL_PAGE_TYPE::KeyAt(int index) const {
   // replace with your own code
-    assert(index > 0 && index < GetSize());
+    //assert(index > 0 );
+    assert( index < GetSize());
     return array[index].first;
 }
 
@@ -70,7 +71,8 @@ int B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueIndex(const ValueType &value) const {
  */
 INDEX_TEMPLATE_ARGUMENTS
 ValueType B_PLUS_TREE_INTERNAL_PAGE_TYPE::ValueAt(int index) const { 
-    assert(index >= 0 && index < GetSize());
+    //assert(index >= 0);
+    assert (index < GetSize() );
     return array[index].second; 
 }
 
@@ -88,12 +90,20 @@ ValueType B_PLUS_TREE_INTERNAL_PAGE_TYPE::Lookup(const KeyType &key, const KeyCo
     int l = 1, r = GetSize() - 1;
     while (l <= r) {
         int mid = l + (r - l) / 2;
+        LOG_INFO("[Internal-Lookup] mid = %d", mid);
         int cmp = comparator(array[mid].first, key);
         if (cmp <= 0) {
             ret = array[mid].second;
-            if (cmp == 0) break;
-            else l = mid + 1;
+            if (cmp != 0){
+                LOG_INFO("[Internal-Lookup] mid.key < key, find in right section.");
+                l = mid + 1;
+            } 
+            else {
+                LOG_INFO("[Internal-Lookup] mid.key == key.");
+                break;
+            }
         } else {
+            LOG_INFO("[Internal-Lookup] mid.key > key, find in left section.");
             r = mid - 1;
         }
     }
@@ -128,7 +138,8 @@ int B_PLUS_TREE_INTERNAL_PAGE_TYPE::InsertNodeAfter(const ValueType &old_value, 
                                                     const ValueType &new_value) {
     int position = ValueIndex(old_value);
     int current_size = GetSize();
-    assert(position != -1 && (current_size < GetMaxSize()));
+    assert( position >= 0 );
+    LOG_INFO("[internal-InsertNodeAfter] insert position %d", position);
     for (int i = current_size; i > position; i--) {
         array[i] = array[i-1];
     }
@@ -148,7 +159,7 @@ INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveHalfTo(BPlusTreeInternalPage *recipient,
                                                 BufferPoolManager *buffer_pool_manager) {
     int current_size = GetSize();
-    assert(current_size >= GetMaxSize());
+    assert(current_size > GetMaxSize());
     int half = (current_size + 1) / 2;
     recipient->CopyNFrom(array + half, current_size - half, buffer_pool_manager);
     SetSize(half);
@@ -162,7 +173,7 @@ INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyNFrom(MappingType *items, int size, BufferPoolManager *buffer_pool_manager) {
     int current_size = GetSize();
     int new_size = current_size + size;
-    assert(new_size <= GetMaxSize() - 1);
+    assert(new_size <= GetMaxSize());
 
     page_id_t current_id = GetPageId();
     for(int i = 0; i < size; i++) {

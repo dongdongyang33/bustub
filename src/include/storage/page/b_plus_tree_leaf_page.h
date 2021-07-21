@@ -63,11 +63,14 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   void MoveFirstToEndOf(BPlusTreeLeafPage *recipient, const KeyType &middle_key, BufferPoolManager *buffer_pool_manager);
   void MoveLastToFrontOf(BPlusTreeLeafPage *recipient, const KeyType &middle_key, BufferPoolManager *buffer_pool_manager);
 
+  // help function 
+  int LookUpTheKey(const KeyType &key, const KeyComparator &comparator) const;
+  
  private:
   void CopyNFrom(MappingType *items, int size);
   void CopyLastFrom(const MappingType &item);
   void CopyFirstFrom(const MappingType &item);
-  int LookUpTheKey(const KeyType &key, const KeyComparator &comparator) const;
+  //int LookUpTheKey(const KeyType &key, const KeyComparator &comparator) const;
   page_id_t next_page_id_;
   MappingType array[0];
 };

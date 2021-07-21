@@ -160,6 +160,7 @@ class Transaction {
     table_write_set_ = std::make_shared<std::deque<TableWriteRecord>>();
     index_write_set_ = std::make_shared<std::deque<IndexWriteRecord>>();
     page_set_ = std::make_shared<std::deque<bustub::Page *>>();
+    release_page_set_ = std::make_shared<std::deque<bustub::Page *>>();
     deleted_page_set_ = std::make_shared<std::unordered_set<page_id_t>>();
     tree_latch = false;
   }
@@ -209,10 +210,10 @@ class Transaction {
    * Adds a page into the page set.
    * @param page page to be added
    */
-  inline void AddIntoPageSet(Page *page) { page_set_->push_back(page); }
+  inline void AddIntoPageSet(Page *page) { page_set_->push_front(page); }
   inline Page* GetFromPageSet() { return page_set_->front(); }
 
-  inline void AddIntoReleasePageSet(Page* page) { release_page_set_->push_back(page); }
+  inline void AddIntoReleasePageSet(Page* page) { release_page_set_->push_front(page); }
   inline Page* GetFromReleasePageSet() { return release_page_set_->front(); }
 
   /** @return the deleted page set */
@@ -256,6 +257,7 @@ class Transaction {
 
   inline bool GetTreeLatch() { return tree_latch; }
   inline void SetTreeLatch(bool tl) { tree_latch = tl; }
+  
  private:
   /** The current transaction state. */
   TransactionState state_;

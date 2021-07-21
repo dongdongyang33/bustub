@@ -24,7 +24,7 @@ class IndexIterator {
  public:
   // you may define your own constructor based on your member variables
   IndexIterator();
-  IndexIterator(Page* page, BufferPoolManager* _bpm);
+  IndexIterator(Page* page, int idx, BufferPoolManager* _bpm);
   ~IndexIterator();
 
   bool isEnd();

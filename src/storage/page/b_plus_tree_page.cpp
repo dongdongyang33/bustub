@@ -36,7 +36,7 @@ int BPlusTreePage::GetMaxSize() const { return max_size_; }
 void BPlusTreePage::SetMaxSize(int size) { max_size_ = size; }
 
 bool BPlusTreePage::IsSafeToInsert() {
-    if ((size_ + 1) >= max_size_) return false;
+    if ((size_ + 1) > max_size_) return false;
     else return true;
 }
 

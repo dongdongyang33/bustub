@@ -13,6 +13,7 @@
 
 #include "common/exception.h"
 #include "common/rid.h"
+#include "common/logger.h"
 #include "storage/page/b_plus_tree_leaf_page.h"
 
 namespace bustub {
@@ -32,6 +33,8 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::Init(page_id_t page_id, page_id_t parent_id, in
     SetPageId(page_id);
     SetParentPageId(parent_id);
     SetMaxSize(max_size);
+    SetNextPageId(INVALID_PAGE_ID);
+    LOG_INFO("[leaf page init] init done. page_id = %d, parent_page_id = %d\n", GetPageId(), GetParentPageId());
 }
 
 /**
@@ -52,20 +55,28 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::SetNextPageId(page_id_t next_page_id) {
  * NOTE: This method is only used when generating index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-int B_PLUS_TREE_LEAF_PAGE_TYPE::KeyIndex(const KeyType &key, const KeyComparator &comparator) const { 
+int B_PLUS_TREE_LEAF_PAGE_TYPE::KeyIndex(const KeyType &key, const KeyComparator &comparator) const {
     int l = 0, r = GetSize() - 1;
-    int ret = r;
+    int ret = GetSize();
     while (l <= r) {
         int m = l + ( r - l ) / 2;
+        LOG_INFO("[leaf-KeyIndex] mid = %d.", m);
         int cmp = comparator(array[m].first, key);
         if (cmp >= 0) {
             ret = m;
-            if (cmp == 0) break;
-            else r = m - 1;
+            if (cmp == 0) {
+                LOG_INFO("[leaf-KeyIndex] mid.key == key, break.");
+                break;
+            } else {
+                LOG_INFO("[leaf-KeyIndex] mid.key > key, go to left section.");
+                r = m - 1;
+            }
         } else {
+            LOG_INFO("[leaf-KeyIndex] mid.key < key, go to right section.");
             l = m + 1;
         }
     }
+    if (ret == GetSize()) LOG_INFO("[leaf-KeyIndex] array[i].first >= key no exist. return the current size.");
     return ret; 
 }
 
@@ -101,8 +112,10 @@ const MappingType &B_PLUS_TREE_LEAF_PAGE_TYPE::GetItem(int index) {
 INDEX_TEMPLATE_ARGUMENTS
 int B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator) {
     int current_size = GetSize();
-    assert(GetSize() < GetMaxSize());
+    assert(current_size <= GetMaxSize());
     int position = KeyIndex(key, comparator);
+    if (position == -1) position = 0;
+    LOG_INFO("[leaf-Insert] insert position %d\n", position);
     for (int i = current_size; i > position; i--) {
         array[i] = array[i-1];
     }
@@ -138,7 +151,7 @@ INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyNFrom(MappingType *items, int size) {
     int current_size = GetSize();
     int new_size = current_size + size;
-    assert(new_size < GetMaxSize());
+    assert(new_size <= GetMaxSize());
     for (int i = 0; i < size; i++) {
         array[i + current_size] = items[i];
     }
@@ -264,14 +277,23 @@ int B_PLUS_TREE_LEAF_PAGE_TYPE::LookUpTheKey(const KeyType &key, const KeyCompar
     int l = 0, r = GetSize() - 1;
     while (l <= r) {
         int m = l + ( r - l ) / 2;
+        LOG_INFO("[leaf-lookup] mid = %d.", m);
         int cmp = comparator(array[m].first, key);
         if (cmp == 0) {
+            LOG_INFO("[leaf-lookup] mid.key == key, return.");
             return m;
         } else {
-            if (cmp > 0) r = m - 1;
-            else l = m + 1;
+            if (cmp > 0) {
+                LOG_INFO("[leaf-lookup] mid.key > key, go to left section.");
+                r = m - 1;
+            }
+            else {
+                LOG_INFO("[leaf-lookup] mid.key < key, go to right section.");
+                l = m + 1;
+            }
         }
     }
+    LOG_INFO("[leaf-lookup] did not find the needed key, return.");
     return -1;
 }
 
