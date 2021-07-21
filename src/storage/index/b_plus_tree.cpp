@@ -388,10 +388,12 @@ void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *old_node, const KeyType &ke
  */
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
+    LOG_INFO("[Remove] Start.\n");
     Page* opt_page = GetLeafPageOptimistic(false, key, transaction);
     if (opt_page != nullptr) {
         LeafPage* tree_page = reinterpret_cast<LeafPage*>(opt_page->GetData());
         if (!tree_page->IsSafeToRemove()) {
+            LOG_INFO("[Remove] Unsafe to remove kv. re-get page in pessimistic way.\n");
             ReleaseLatchAndDeletePage(transaction, false);
             opt_page = GetLeafPagePessimistic(false, key, transaction);
             if (opt_page != nullptr) {
@@ -400,6 +402,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
         }
 
         if (tree_page->RemoveAndDeleteRecord(key, comparator_) < tree_page->GetMinSize()) {
+            LOG_INFO("[Remove] size < minSize, need to CoalesceOrRedistribute.\n");
             CoalesceOrRedistribute(tree_page, transaction);
         }
         ReleaseLatchAndDeletePage(transaction, false);
@@ -419,6 +422,7 @@ INDEX_TEMPLATE_ARGUMENTS
 template <typename N>
 bool BPLUSTREE_TYPE::CoalesceOrRedistribute(N *node, Transaction *transaction) {
     assert(node->GetSize() == node->GetMinSize() - 1);
+    LOG_INFO("[CoalesceOrRedistribute] start.\n");
     bool ret = false;
     std::shared_ptr<std::deque<Page*>> page_set = transaction->GetPageSet();
     std::shared_ptr<std::deque<Page*>> release_page_set = transaction->GetReleasePageSet();
@@ -427,33 +431,46 @@ bool BPLUSTREE_TYPE::CoalesceOrRedistribute(N *node, Transaction *transaction) {
     page_set->pop_front();
 
     if (node->IsRootPage()){
+        LOG_INFO("[CoalesceOrRedistribute] root page. need adjust root.\n");
         transaction->AddIntoDeletedPageSet(node->GetPageId());
         AdjustRoot(node);
     } else {
+        LOG_INFO("[CoalesceOrRedistribute] not a root page.\n");
         Page* parent_page = transaction->GetFromPageSet();
         InternalPage* parent_node = reinterpret_cast<InternalPage*>(parent_page->GetData());
 
         int current_index = parent_node->ValueIndex(node->GetPageId());
         int sibling_index = (current_index == 0) ? 1 : current_index - 1;
+        LOG_INFO("[CoalesceOrRedistribute] in parent [current_index, sibling_index] = [%d, %d].\n", 
+                                                                    current_index, sibling_index);
+
         page_id_t sibling_page_id = parent_node->ValueAt(sibling_index);
         Page* sibling_page = FetchNeedPageFromBPM(sibling_page_id);
         sibling_page->WLatch();
         transaction->AddIntoReleasePageSet(sibling_page);
 
         N* sibling_node = reinterpret_cast<N*>(sibling_page->GetData());
+        LOG_INFO("[CoalesceOrRedistribute] [node_id, sibling_id] = [%d, %d].\n", node->GetPageId(), sibling_node->GetPageId());
         if (node->GetSize() + sibling_node->GetSize() < node->GetMaxSize()) {
             // coalesce: merge right to left and delete right page.
+            LOG_INFO("[CoalesceOrRedistribute] Coalesce.\n");
             bool delete_parent;
             if (current_index < sibling_index){
+                LOG_INFO("[CoalesceOrRedistribute] move node to sibling.\n");
                 delete_parent = Coalesce(&sibling_node, &node, &parent_node, sibling_index, transaction);
                 release_page_set->push_back(sibling_page);
             } else {
+                LOG_INFO("[CoalesceOrRedistribute] move sibling to node.\n");
                 delete_parent = Coalesce(&node, &sibling_node, &parent_node, current_index, transaction);
                 release_page_set->push_back(current_page);
             }
-            if (delete_parent) ret = CoalesceOrRedistribute(parent_node, transaction);
+            if (delete_parent) {
+                LOG_INFO("[CoalesceOrRedistribute] parent size < min size.\n");
+                ret = CoalesceOrRedistribute(parent_node, transaction);
+            } 
         } else {
             // redistribution
+            LOG_INFO("[CoalesceOrRedistribute] Redistribute.\n");
             Redistribute(sibling_node, node, current_index);
             if (current_index == 0) parent_node->SetKeyAt(sibling_index, sibling_node->KeyAt(0));
             else parent_node->SetKeyAt(current_index, node->KeyAt(0));
@@ -483,6 +500,7 @@ template <typename N>
 bool BPLUSTREE_TYPE::Coalesce(N **neighbor_node, N **node,
                               BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> **parent, int index,
                               Transaction *transaction) {
+    LOG_INFO("[Coalesce] start.\n");
     bool ret = false;
     (*node)->MoveAllTo(*neighbor_node, (*node)->KeyAt(0), buffer_pool_manager_);
     (*parent)->Remove(index);
@@ -503,9 +521,12 @@ bool BPLUSTREE_TYPE::Coalesce(N **neighbor_node, N **node,
 INDEX_TEMPLATE_ARGUMENTS
 template <typename N>
 void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node, int index) {
+    LOG_INFO("[Redistribute] start.\n");
     if(index == 0) {
+        LOG_INFO("[Redistribute] index == 0. move sibling first to node's end.\n");
         neighbor_node->MoveFirstToEndOf(node, node->KeyAt(0), buffer_pool_manager_);
     } else {
+        LOG_INFO("[Redistribute] index != 0. move sibling last to node's first.\n");
         neighbor_node->MoveLastToFrontOf(node, node->KeyAt(0), buffer_pool_manager_);
     }
 }
@@ -523,11 +544,14 @@ void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node, int index) {
  */
 INDEX_TEMPLATE_ARGUMENTS
 bool BPLUSTREE_TYPE::AdjustRoot(BPlusTreePage *old_root_node) { 
+    LOG_INFO("[AdjustRoot] start.\n");
     if (old_root_node->IsLeafPage()) {
         assert(old_root_node->GetSize() == 0);
-        root_page_id_ = INVALID_PAGE_ID;
+        LOG_INFO("[AdjustRoot] only a leaf in the tree. remove it.\n");
+        root_page_id_ = HEADER_PAGE_ID;
     } else {
         assert(old_root_node->GetSize() == 1);
+        LOG_INFO("[AdjustRoot] root is an internal page. remove it.\n");
         InternalPage* opt = reinterpret_cast<InternalPage*>(old_root_node);
         page_id_t page_id = opt->RemoveAndReturnOnlyChild();
         root_page_id_ = page_id;

@@ -12,7 +12,7 @@
 
 namespace bustub {
 
-TEST(BPlusTreeTests, DISABLED_DeleteTest1) {
+TEST(BPlusTreeTests, DeleteTest1) {
   // create KeyComparator and index schema
   std::string createStmt = "a bigint";
   Schema *key_schema = ParseCreateStatement(createStmt);
@@ -44,7 +44,7 @@ TEST(BPlusTreeTests, DISABLED_DeleteTest1) {
   for (auto key : keys) {
     rids.clear();
     index_key.SetFromInteger(key);
-    tree.GetValue(index_key, &rids);
+    tree.GetValue(index_key, &rids, transaction);
     EXPECT_EQ(rids.size(), 1);
 
     int64_t value = key & 0xFFFFFFFF;
@@ -54,26 +54,29 @@ TEST(BPlusTreeTests, DISABLED_DeleteTest1) {
   int64_t start_key = 1;
   int64_t current_key = start_key;
   index_key.SetFromInteger(start_key);
-  for (auto iterator = tree.Begin(index_key); iterator != tree.end(); ++iterator) {
+  for (auto iterator = tree.Begin(index_key); iterator != tree.End(); ++iterator) {
     auto location = (*iterator).second;
     EXPECT_EQ(location.GetPageId(), 0);
     EXPECT_EQ(location.GetSlotNum(), current_key);
     current_key = current_key + 1;
   }
-
   EXPECT_EQ(current_key, keys.size() + 1);
+  
+
+
 
   std::vector<int64_t> remove_keys = {1, 5};
   for (auto key : remove_keys) {
     index_key.SetFromInteger(key);
     tree.Remove(index_key, transaction);
+    LOG_INFO("[remove-test] remove successfully.\n");
   }
 
   start_key = 2;
   current_key = start_key;
   int64_t size = 0;
   index_key.SetFromInteger(start_key);
-  for (auto iterator = tree.Begin(index_key); iterator != tree.end(); ++iterator) {
+  for (auto iterator = tree.Begin(index_key); iterator != tree.End(); ++iterator) {
     auto location = (*iterator).second;
     EXPECT_EQ(location.GetPageId(), 0);
     EXPECT_EQ(location.GetSlotNum(), current_key);
@@ -92,7 +95,7 @@ TEST(BPlusTreeTests, DISABLED_DeleteTest1) {
   remove("test.log");
 }
 
-TEST(BPlusTreeTests, DISABLED_DeleteTest2) {
+TEST(BPlusTreeTests, DeleteTest2) {
   // create KeyComparator and index schema
   Schema *key_schema = ParseCreateStatement("a bigint");
   GenericComparator<8> comparator(key_schema);
@@ -123,7 +126,7 @@ TEST(BPlusTreeTests, DISABLED_DeleteTest2) {
   for (auto key : keys) {
     rids.clear();
     index_key.SetFromInteger(key);
-    tree.GetValue(index_key, &rids);
+    tree.GetValue(index_key, &rids, transaction);
     EXPECT_EQ(rids.size(), 1);
 
     int64_t value = key & 0xFFFFFFFF;
@@ -133,7 +136,7 @@ TEST(BPlusTreeTests, DISABLED_DeleteTest2) {
   int64_t start_key = 1;
   int64_t current_key = start_key;
   index_key.SetFromInteger(start_key);
-  for (auto iterator = tree.Begin(index_key); iterator != tree.end(); ++iterator) {
+  for (auto iterator = tree.Begin(index_key); iterator != tree.End(); ++iterator) {
     auto location = (*iterator).second;
     EXPECT_EQ(location.GetPageId(), 0);
     EXPECT_EQ(location.GetSlotNum(), current_key);
@@ -152,7 +155,7 @@ TEST(BPlusTreeTests, DISABLED_DeleteTest2) {
   current_key = start_key;
   int64_t size = 0;
   index_key.SetFromInteger(start_key);
-  for (auto iterator = tree.Begin(index_key); iterator != tree.end(); ++iterator) {
+  for (auto iterator = tree.Begin(index_key); iterator != tree.End(); ++iterator) {
     auto location = (*iterator).second;
     EXPECT_EQ(location.GetPageId(), 0);
     EXPECT_EQ(location.GetSlotNum(), current_key);

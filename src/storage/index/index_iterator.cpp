@@ -31,7 +31,11 @@ INDEXITERATOR_TYPE::IndexIterator(Page* page, int idx, BufferPoolManager* _bpm) 
 
 INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE::~IndexIterator() {
-    if(current_page != nullptr) bpm->UnpinPage(current_page->GetPageId(), false);
+    if(current_page != nullptr) {
+        LOG_INFO("[~iterator] unlatch and unpin the page from bmp.\n");
+        current_page->RUnlatch();
+        bpm->UnpinPage(current_page->GetPageId(), false);
+    }    
 }
 
 INDEX_TEMPLATE_ARGUMENTS
@@ -64,12 +68,16 @@ INDEXITERATOR_TYPE &INDEXITERATOR_TYPE::operator++() {
             bpm->UnpinPage(opt_page->GetPageId(), false);
             if(next_page_id == INVALID_PAGE_ID) {
                 LOG_INFO("[iterator++] end of the page.\n");
+                current_page->RUnlatch();
                 current_page = nullptr;
                 current_index = -1;
             } else {
                 LOG_INFO("[iterator++] go to the next page.\n");
                 Page* next_page = bpm->FetchPage(next_page_id);
+                next_page->RLatch();
                 if (next_page != nullptr) {
+                    next_page->RLatch();
+                    current_page->RUnlatch();
                     current_page = next_page;
                     current_index = 0;
                 } else {
