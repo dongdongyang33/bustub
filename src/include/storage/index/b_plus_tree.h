@@ -90,7 +90,7 @@ class BPlusTree {
                         Transaction *transaction = nullptr);
 
   template <typename N>
-  N *Split(N *node);
+  N *Split(N *node, Transaction *txn);
 
   template <typename N>
   bool CoalesceOrRedistribute(N *node, Transaction *transaction = nullptr);
@@ -104,7 +104,7 @@ class BPlusTree {
 
   bool AdjustRoot(BPlusTreePage *node);
 
-  void UpdateRootPageId(int insert_record = 0);
+  void UpdateRootPageId();
 
   /* */
   Page* GetLeafPageOptimistic(bool isRead, const KeyType &key,  Transaction* txn);

@@ -189,13 +189,16 @@ bool B_PLUS_TREE_LEAF_PAGE_TYPE::Lookup(const KeyType &key, ValueType *value, co
 INDEX_TEMPLATE_ARGUMENTS
 int B_PLUS_TREE_LEAF_PAGE_TYPE::RemoveAndDeleteRecord(const KeyType &key, const KeyComparator &comparator) { 
     int current_size = GetSize();
-    int location =  LookUpTheKey(key, comparator);
-    if (location != -1) {
+    int position =  LookUpTheKey(key, comparator);
+    if (position != -1) {
         current_size -= 1;
-        for(int i = location; i < current_size; i++){
+        for(int i = position; i < current_size; i++){
             array[i] = array[i+1];
         }
         SetSize(current_size);
+        LOG_INFO("[leaf-Remove] remove position %d. current array size is %d\n", position, current_size);
+    } else {
+        LOG_INFO("[leaf-Remove] didn't find match key.\n");
     }
     return current_size; 
 }
