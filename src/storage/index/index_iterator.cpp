@@ -66,7 +66,7 @@ INDEXITERATOR_TYPE &INDEXITERATOR_TYPE::operator++() {
             page_id_t next_page_id = opt_page->GetNextPageId();
             LOG_INFO("next page id = %d\n", next_page_id);
             if(next_page_id == INVALID_PAGE_ID) {
-                LOG_INFO("[iterator++] end of the page.\n");
+                LOG_INFO("[iterator++] end of all page.\n");
                 current_page->RUnlatch();
                 current_page = nullptr;
                 current_index = -1;
@@ -75,14 +75,13 @@ INDEXITERATOR_TYPE &INDEXITERATOR_TYPE::operator++() {
                 Page* next_page = bpm->FetchPage(next_page_id);
                 if (next_page != nullptr) {
                     next_page->RLatch();
-                    current_page->RUnlatch();
                     current_page = next_page;
                     current_index = 0;
                 } else {
                     throw std::runtime_error("bufferpoolmanager full while operator++");
                 }
             }
-            bpm->UnpinPage(opt_page->GetPageId(), false);
+            bpm->UnpinPage(opt_page->GetPageId(), false, LatchType::READ);
         }
     }
 	

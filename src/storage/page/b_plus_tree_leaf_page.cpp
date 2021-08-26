@@ -34,7 +34,8 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::Init(page_id_t page_id, page_id_t parent_id, in
     SetParentPageId(parent_id);
     SetMaxSize(max_size);
     SetNextPageId(INVALID_PAGE_ID);
-    LOG_INFO("[leaf page init] init done. page_id = %d, parent_page_id = %d\n", GetPageId(), GetParentPageId());
+    LOG_INFO("[leaf page init] init done. page_id = %d, parent_page_id = %d, max_size = %d\n", 
+                                                    GetPageId(), GetParentPageId(), max_size);
 }
 
 /**
@@ -60,23 +61,23 @@ int B_PLUS_TREE_LEAF_PAGE_TYPE::KeyIndex(const KeyType &key, const KeyComparator
     int ret = GetSize();
     while (l <= r) {
         int m = l + ( r - l ) / 2;
-        LOG_INFO("[leaf-KeyIndex] mid = %d.", m);
+        //LOG_INFO("[leaf-KeyIndex] mid = %d.", m);
         int cmp = comparator(array[m].first, key);
         if (cmp >= 0) {
             ret = m;
             if (cmp == 0) {
-                LOG_INFO("[leaf-KeyIndex] mid.key == key, break.");
+                //LOG_INFO("[leaf-KeyIndex] mid.key == key, break.");
                 break;
             } else {
-                LOG_INFO("[leaf-KeyIndex] mid.key > key, go to left section.");
+                //LOG_INFO("[leaf-KeyIndex] mid.key > key, go to left section.");
                 r = m - 1;
             }
         } else {
-            LOG_INFO("[leaf-KeyIndex] mid.key < key, go to right section.");
+            //LOG_INFO("[leaf-KeyIndex] mid.key < key, go to right section.");
             l = m + 1;
         }
     }
-    if (ret == GetSize()) LOG_INFO("[leaf-KeyIndex] array[i].first >= key no exist. return the current size.");
+    if (ret == GetSize()) {LOG_INFO("[leaf-KeyIndex] array[i].first >= key no exist. return the current size.");}
     return ret; 
 }
 
@@ -114,7 +115,8 @@ int B_PLUS_TREE_LEAF_PAGE_TYPE::Insert(const KeyType &key, const ValueType &valu
     int current_size = GetSize();
     assert(current_size <= GetMaxSize());
     int position = KeyIndex(key, comparator);
-    if (position == -1) position = 0;
+    //assert(comparator(array[position], key) <= 0);
+    //if (position == -1) position = 0;
     LOG_INFO("[leaf-Insert] insert position %d\n", position);
     for (int i = current_size; i > position; i--) {
         array[i] = array[i-1];
@@ -137,10 +139,9 @@ INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveHalfTo(BPlusTreeLeafPage *recipient,
                                             __attribute__((unused)) BufferPoolManager *buffer_pool_manager) {
     int current_size = GetSize();
-    assert(current_size >= GetMaxSize());
+    assert(current_size > GetMaxSize());
     int left_half = (current_size + 1) / 2;
     recipient->CopyNFrom(array + left_half, current_size - left_half);
-    next_page_id_ = recipient->GetPageId();
     SetSize(left_half);
 }
 
@@ -153,7 +154,7 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyNFrom(MappingType *items, int size) {
     int new_size = current_size + size;
     assert(new_size <= GetMaxSize());
     for (int i = 0; i < size; i++) {
-        array[i + current_size] = items[i];
+        array[current_size + i] = items[i];
     }
     SetSize(new_size);
 }
@@ -244,8 +245,9 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeLeafPage *recipient,
  */
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyLastFrom(const MappingType &item) {
-    assert(GetSize() < GetMaxSize() - 1);
-    array[GetSize()] = item;
+    int size = GetSize();
+    assert(size < GetMinSize());
+    array[size] = item;
     IncreaseSize(1);
 }
 
@@ -256,9 +258,11 @@ INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeLeafPage *recipient,
                                             __attribute__((unused)) const KeyType &middle_key, 
                                             __attribute__((unused)) BufferPoolManager *buffer_pool_manager) {
-    assert(GetSize() > GetMinSize());
-    recipient->CopyFirstFrom(array[GetSize() - 1]);
-    IncreaseSize(-1);
+    int size = GetSize();
+    assert(size > GetMinSize());
+    size -= 1;
+    recipient->CopyFirstFrom(array[size]);
+    SetSize(size);
 }
 
 /*
@@ -280,18 +284,18 @@ int B_PLUS_TREE_LEAF_PAGE_TYPE::LookUpTheKey(const KeyType &key, const KeyCompar
     int l = 0, r = GetSize() - 1;
     while (l <= r) {
         int m = l + ( r - l ) / 2;
-        LOG_INFO("[leaf-lookup] mid = %d.", m);
+        //LOG_INFO("[leaf-lookup] mid = %d.", m);
         int cmp = comparator(array[m].first, key);
         if (cmp == 0) {
-            LOG_INFO("[leaf-lookup] mid.key == key, return.");
+            //LOG_INFO("[leaf-lookup] mid.key == key, return.");
             return m;
         } else {
             if (cmp > 0) {
-                LOG_INFO("[leaf-lookup] mid.key > key, go to left section.");
+                //LOG_INFO("[leaf-lookup] mid.key > key, go to left section.");
                 r = m - 1;
             }
             else {
-                LOG_INFO("[leaf-lookup] mid.key < key, go to right section.");
+                //LOG_INFO("[leaf-lookup] mid.key < key, go to right section.");
                 l = m + 1;
             }
         }

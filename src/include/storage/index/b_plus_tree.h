@@ -14,6 +14,8 @@
 #include <string>
 #include <vector>
 
+#include <time.h>
+
 #include "concurrency/transaction.h"
 #include "storage/index/index_iterator.h"
 #include "storage/page/b_plus_tree_internal_page.h"
@@ -50,7 +52,7 @@ class BPlusTree {
   bool Insert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr);
 
   // Remove a key and its value from this B+ tree.
-  void Remove(const KeyType &key, Transaction *transaction = nullptr);
+  bool Remove(const KeyType &key, Transaction *transaction = nullptr);
 
   // return the value associated with a given key
   bool GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction = nullptr);
@@ -82,7 +84,8 @@ class BPlusTree {
 
  private:
 
-  void StartNewTree(const KeyType &key, const ValueType &value);
+  void StartNewTree(const KeyType &key, const ValueType &value, Transaction* txn);
+
 
   bool InsertIntoLeaf(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr);
 
@@ -93,7 +96,7 @@ class BPlusTree {
   N *Split(N *node, Transaction *txn);
 
   template <typename N>
-  bool CoalesceOrRedistribute(N *node, Transaction *transaction = nullptr);
+  void CoalesceOrRedistribute(N *node, Transaction *transaction = nullptr);
 
   template <typename N>
   bool Coalesce(N **neighbor_node, N **node, BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> **parent,
@@ -120,6 +123,7 @@ class BPlusTree {
 
   void ToString(BPlusTreePage *page, BufferPoolManager *bpm) const;
 
+  uint32_t getCurrentThreadId();
   // member variable
   std::string index_name_;
   page_id_t root_page_id_;
