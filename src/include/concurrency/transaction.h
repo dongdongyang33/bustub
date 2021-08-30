@@ -160,7 +160,9 @@ class Transaction {
     table_write_set_ = std::make_shared<std::deque<TableWriteRecord>>();
     index_write_set_ = std::make_shared<std::deque<IndexWriteRecord>>();
     page_set_ = std::make_shared<std::deque<bustub::Page *>>();
+    release_page_set_ = std::make_shared<std::deque<bustub::Page *>>();
     deleted_page_set_ = std::make_shared<std::unordered_set<page_id_t>>();
+    tree_latch = false;
   }
 
   ~Transaction() = default;
@@ -185,6 +187,9 @@ class Transaction {
   /** @return the page set */
   inline std::shared_ptr<std::deque<Page *>> GetPageSet() { return page_set_; }
 
+  /** @return the release page set */
+  inline std::shared_ptr<std::deque<Page*>> GetReleasePageSet() { return release_page_set_; }
+
   /**
    * Adds a tuple write record into the table write set.
    * @param write_record write record to be added
@@ -205,7 +210,11 @@ class Transaction {
    * Adds a page into the page set.
    * @param page page to be added
    */
-  inline void AddIntoPageSet(Page *page) { page_set_->push_back(page); }
+  inline void AddIntoPageSet(Page *page) { page_set_->push_front(page); }
+  inline Page* GetFromPageSet() { return page_set_->front(); }
+
+  inline void AddIntoReleasePageSet(Page* page) { release_page_set_->push_front(page); }
+  inline Page* GetFromReleasePageSet() { return release_page_set_->front(); }
 
   /** @return the deleted page set */
   inline std::shared_ptr<std::unordered_set<page_id_t>> GetDeletedPageSet() { return deleted_page_set_; }
@@ -246,6 +255,9 @@ class Transaction {
    */
   inline void SetPrevLSN(lsn_t prev_lsn) { prev_lsn_ = prev_lsn; }
 
+  inline bool GetTreeLatch() { return tree_latch; }
+  inline void SetTreeLatch(bool tl) { tree_latch = tl; }
+  
  private:
   /** The current transaction state. */
   TransactionState state_;
@@ -265,8 +277,12 @@ class Transaction {
 
   /** Concurrent index: the pages that were latched during index operation. */
   std::shared_ptr<std::deque<Page *>> page_set_;
+  /** Concurrent index: the pages that done and need to release latch*/
+  std::shared_ptr<std::deque<Page *>> release_page_set_;
   /** Concurrent index: the page IDs that were deleted during index operation.*/
   std::shared_ptr<std::unordered_set<page_id_t>> deleted_page_set_;
+  /** The tree have tree latch or not. */
+  bool tree_latch;
 
   /** LockManager: the set of shared-locked tuples held by this transaction. */
   std::shared_ptr<std::unordered_set<RID>> shared_lock_set_;

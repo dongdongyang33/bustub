@@ -26,6 +26,7 @@ namespace bustub {
 /**
  * BufferPoolManager reads disk pages to and from its internal buffer pool.
  */
+enum class LatchType{ NONE = 0, READ, WRITE};
 class BufferPoolManager {
  public:
   enum class CallbackType { BEFORE, AFTER };
@@ -53,9 +54,9 @@ class BufferPoolManager {
   }
 
   /** Grading function. Do not modify! */
-  bool UnpinPage(page_id_t page_id, bool is_dirty, bufferpool_callback_fn callback = nullptr) {
+  bool UnpinPage(page_id_t page_id, bool is_dirty, LatchType latch_type = LatchType::NONE, bufferpool_callback_fn callback = nullptr) {
     GradingCallback(callback, CallbackType::BEFORE, page_id);
-    auto result = UnpinPageImpl(page_id, is_dirty);
+    auto result = UnpinPageImpl(page_id, is_dirty, latch_type);
     GradingCallback(callback, CallbackType::AFTER, page_id);
     return result;
   }
@@ -77,9 +78,9 @@ class BufferPoolManager {
   }
 
   /** Grading function. Do not modify! */
-  bool DeletePage(page_id_t page_id, bufferpool_callback_fn callback = nullptr) {
+  bool DeletePage(page_id_t page_id, LatchType latch_type = LatchType::NONE, bufferpool_callback_fn callback = nullptr) {
     GradingCallback(callback, CallbackType::BEFORE, page_id);
-    auto result = DeletePageImpl(page_id);
+    auto result = DeletePageImpl(page_id, latch_type);
     GradingCallback(callback, CallbackType::AFTER, page_id);
     return result;
   }
@@ -124,7 +125,7 @@ class BufferPoolManager {
    * @param is_dirty true if the page should be marked as dirty, false otherwise
    * @return false if the page pin count is <= 0 before this call, true otherwise
    */
-  bool UnpinPageImpl(page_id_t page_id, bool is_dirty);
+  bool UnpinPageImpl(page_id_t page_id, bool is_dirty, LatchType latch_type = LatchType::NONE);
 
   /**
    * Flushes the target page to disk.
@@ -145,7 +146,7 @@ class BufferPoolManager {
    * @param page_id id of page to be deleted
    * @return false if the page exists but could not be deleted, true if the page didn't exist or deletion succeeded
    */
-  bool DeletePageImpl(page_id_t page_id);
+  bool DeletePageImpl(page_id_t page_id, LatchType latch_type = LatchType::NONE);
 
   /**
    * Flushes all the pages in the buffer pool to disk.

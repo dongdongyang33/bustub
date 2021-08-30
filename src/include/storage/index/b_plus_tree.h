@@ -14,10 +14,13 @@
 #include <string>
 #include <vector>
 
+#include <time.h>
+
 #include "concurrency/transaction.h"
 #include "storage/index/index_iterator.h"
 #include "storage/page/b_plus_tree_internal_page.h"
 #include "storage/page/b_plus_tree_leaf_page.h"
+#include "common/rwlatch.h"
 
 namespace bustub {
 
@@ -49,7 +52,7 @@ class BPlusTree {
   bool Insert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr);
 
   // Remove a key and its value from this B+ tree.
-  void Remove(const KeyType &key, Transaction *transaction = nullptr);
+  bool Remove(const KeyType &key, Transaction *transaction = nullptr);
 
   // return the value associated with a given key
   bool GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction = nullptr);
@@ -58,7 +61,7 @@ class BPlusTree {
   INDEXITERATOR_TYPE begin();
   INDEXITERATOR_TYPE Begin(const KeyType &key);
   INDEXITERATOR_TYPE end();
-
+  INDEXITERATOR_TYPE End();
   void Print(BufferPoolManager *bpm) {
     ToString(reinterpret_cast<BPlusTreePage *>(bpm->FetchPage(root_page_id_)->GetData()), bpm);
   }
@@ -80,7 +83,9 @@ class BPlusTree {
   Page *FindLeafPage(const KeyType &key, bool leftMost = false);
 
  private:
-  void StartNewTree(const KeyType &key, const ValueType &value);
+
+  void StartNewTree(const KeyType &key, const ValueType &value, Transaction* txn);
+
 
   bool InsertIntoLeaf(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr);
 
@@ -88,10 +93,10 @@ class BPlusTree {
                         Transaction *transaction = nullptr);
 
   template <typename N>
-  N *Split(N *node);
+  N *Split(N *node, Transaction *txn);
 
   template <typename N>
-  bool CoalesceOrRedistribute(N *node, Transaction *transaction = nullptr);
+  void CoalesceOrRedistribute(N *node, Transaction *transaction = nullptr);
 
   template <typename N>
   bool Coalesce(N **neighbor_node, N **node, BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> **parent,
@@ -102,13 +107,23 @@ class BPlusTree {
 
   bool AdjustRoot(BPlusTreePage *node);
 
-  void UpdateRootPageId(int insert_record = 0);
+  void UpdateRootPageId();
 
+  /* */
+  Page* GetLeafPageOptimistic(bool isRead, const KeyType &key,  Transaction* txn);
+  Page* GetLeafPagePessimistic(bool isInsert, const KeyType &key, Transaction* txn);
+  Page* GetLeafPageOptimisticForIterator(const KeyType &key, int position);
+  Page* FetchNeedPageFromBPM(page_id_t pid);
+  Page* NewPageFromBPM(page_id_t& pid);
+  template <typename N>
+  void NewRootPage(N *left_node, N *right_node, Transaction *txn); 
+  void ReleaseLatchAndDeletePage(Transaction* txn, bool isRead);
   /* Debug Routines for FREE!! */
   void ToGraph(BPlusTreePage *page, BufferPoolManager *bpm, std::ofstream &out) const;
 
   void ToString(BPlusTreePage *page, BufferPoolManager *bpm) const;
 
+  uint32_t getCurrentThreadId();
   // member variable
   std::string index_name_;
   page_id_t root_page_id_;
@@ -116,6 +131,7 @@ class BPlusTree {
   KeyComparator comparator_;
   int leaf_max_size_;
   int internal_max_size_;
+  mutable ReaderWriterLatch treelatch;
 };
 
 }  // namespace bustub
