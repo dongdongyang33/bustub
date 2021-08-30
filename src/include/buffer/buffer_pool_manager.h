@@ -78,9 +78,9 @@ class BufferPoolManager {
   }
 
   /** Grading function. Do not modify! */
-  bool DeletePage(page_id_t page_id, bufferpool_callback_fn callback = nullptr) {
+  bool DeletePage(page_id_t page_id, LatchType latch_type = LatchType::NONE, bufferpool_callback_fn callback = nullptr) {
     GradingCallback(callback, CallbackType::BEFORE, page_id);
-    auto result = DeletePageImpl(page_id);
+    auto result = DeletePageImpl(page_id, latch_type);
     GradingCallback(callback, CallbackType::AFTER, page_id);
     return result;
   }
@@ -146,7 +146,7 @@ class BufferPoolManager {
    * @param page_id id of page to be deleted
    * @return false if the page exists but could not be deleted, true if the page didn't exist or deletion succeeded
    */
-  bool DeletePageImpl(page_id_t page_id);
+  bool DeletePageImpl(page_id_t page_id, LatchType latch_type = LatchType::NONE);
 
   /**
    * Flushes all the pages in the buffer pool to disk.

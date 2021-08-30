@@ -66,8 +66,8 @@ bool BufferPoolManager::UnpinPageImpl(page_id_t page_id, bool is_dirty, LatchTyp
         if (latch_type == LatchType::READ) pages_[fid].RUnlatch();
         if (latch_type == LatchType::WRITE) pages_[fid].WUnlatch();
         if (pages_[fid].pin_count_ <= 0) {
-            replacer_->Unpin(fid);
-            ret = true;
+            replacer_->Unpin(fid);     
+            ret = true;  
         }
     }
     return ret; 
@@ -91,7 +91,7 @@ Page *BufferPoolManager::NewPageImpl(page_id_t *page_id) {
     return ret;
 }
 
-bool BufferPoolManager::DeletePageImpl(page_id_t page_id) {
+bool BufferPoolManager::DeletePageImpl(page_id_t page_id, LatchType latch_type) {
   // 0.   Make sure you call DiskManager::DeallocatePage!
   // 1.   Search the page table for the requested page (P).
   // 1.   If P does not exist, return true.
@@ -102,11 +102,14 @@ bool BufferPoolManager::DeletePageImpl(page_id_t page_id) {
     auto it = page_table_.find(page_id);
     if (it != page_table_.end()) {
         frame_id_t fid = it->second;
+        pages_[fid].pin_count_--;
+        if (latch_type == LatchType::READ) pages_[fid].RUnlatch();
+        if (latch_type == LatchType::WRITE) pages_[fid].WUnlatch();
+        
         if (pages_[fid].pin_count_ > 0){
             LOG_INFO("[bpm-delete] page %d pin count = %d. can't be deleted.\n", page_id, pages_[fid].pin_count_);
             ret = false;
         } else {
-            pages_[fid].WUnlatch();
             disk_manager_->DeallocatePage(page_id);
             page_table_.erase(it);
             free_list_.push_back(fid);

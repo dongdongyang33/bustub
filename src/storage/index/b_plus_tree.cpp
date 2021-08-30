@@ -190,8 +190,7 @@ void BPLUSTREE_TYPE::ReleaseLatchAndDeletePage(Transaction* txn, bool isRead) {
 
     //LOG_INFO("[ReleaseLatchAndDeletePage] delete page in  DeletePageSet.\n");
     for (auto it = deleted_page_set->begin(); it != deleted_page_set->end(); ++it) {
-        buffer_pool_manager_->UnpinPage(*it, true, LatchType::WRITE);
-        buffer_pool_manager_->DeletePage(*it);
+        buffer_pool_manager_->DeletePage(*it, LatchType::WRITE);
     }
     deleted_page_set->clear();
 }
@@ -217,9 +216,8 @@ INDEX_TEMPLATE_ARGUMENTS
 Page* BPLUSTREE_TYPE::NewPageFromBPM(page_id_t& pid) {
     Page* ret = buffer_pool_manager_->NewPage(&pid);
     if (ret != nullptr) {
-        LOG_INFO("[NewPageFromBPM] New page done. New page id = %d.\n", pid);
         ret->WLatch();
-        LOG_INFO("[NewPageFromBPM] locked new page %d with wlatch.\n", pid);
+        LOG_INFO("[NewPageFromBPM] New page done. New page id = %d.\n", pid);
     } else {
         LOG_ERROR("[NewPageFromBPM] No free frame in buffer pool manager!\n");
         std::runtime_error("[NewPageError] No free frame in buffer pool manager!");
